@@ -1,0 +1,6 @@
+name = "btc-daily-bias-api"
+main = "worker.js"
+compatibility_date = "2026-11-23"
+
+# Deploy this Worker separately from the GitHub Pages frontend.
+# No secrets or API keys are required for public BTC spot market data.

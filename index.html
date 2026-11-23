@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="description" content="Personal BTC/USDT multi-timeframe daily bias analyzer">
+  <title>BTC Daily Bias Analyzer</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@5.0.8/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">PERSONAL MARKET ANALYSIS</div>
+      <h1>BTC Daily Bias</h1>
+      <div class="muted">BTC / USDT · ICT + SMC · Top-down</div>
+    </div>
+    <div class="top-actions">
+      <span id="connection" class="status">Connecting…</span>
+      <button id="refreshBtn" class="button">Refresh</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero panel">
+      <div class="hero-main">
+        <div class="eyebrow">CURRENT DAILY BIAS</div>
+        <div id="biasValue" class="bias neutral">ANALYZING</div>
+        <div id="biasReason" class="muted">Collecting market data and evaluating higher timeframes.</div>
+      </div>
+      <div class="hero-price">
+        <div id="price" class="price">—</div>
+        <div id="priceChange" class="muted">Waiting for market data</div>
+        <div id="updatedAt" class="muted small">Not updated yet</div>
+      </div>
+    </section>
+
+    <section class="grid four">
+      <article class="panel metric"><div class="muted">Bias score</div><strong id="score">—</strong><small id="scoreLabel">Evidence balance</small></article>
+      <article class="panel metric"><div class="muted">Volatility</div><strong id="volatility">—</strong><small>ATR / price</small></article>
+      <article class="panel metric"><div class="muted">Draw on liquidity</div><strong id="dol">—</strong><small>Nearest HTF pool</small></article>
+      <article class="panel metric"><div class="muted">Daily candle</div><strong id="dailyState">—</strong><small>UTC 00:00 / IST 05:30</small></article>
+    </section>
+
+    <section class="panel chart-panel">
+      <div class="section-head">
+        <div><h2>Bitcoin chart</h2><div class="muted small">Candles with calculated levels · not an execution signal</div></div>
+        <div class="tabs" id="timeframeTabs">
+          <button data-tf="1d" class="tab active">1D</button>
+          <button data-tf="4h" class="tab">4H</button>
+          <button data-tf="1h" class="tab">1H</button>
+        </div>
+      </div>
+      <div id="chart" role="img" aria-label="BTC USDT candlestick chart"></div>
+      <div class="legend">
+        <span><i class="dot entry"></i>Reference price</span>
+        <span><i class="dot stop"></i>Potential SL</span>
+        <span><i class="dot target"></i>Potential targets</span>
+      </div>
+    </section>
+
+    <section class="grid two">
+      <article class="panel">
+        <h2>Daily risk & targets</h2>
+        <div id="levels" class="levels"><div class="muted">Waiting for analysis…</div></div>
+        <p class="note">These are algorithmic reference levels based on 4H structure, volatility and visible liquidity. They are not guaranteed fills or personalized financial advice.</p>
+      </article>
+      <article class="panel">
+        <h2>Top-down timeframe matrix</h2>
+        <div id="timeframes" class="tf-list"></div>
+        <p class="note">Monthly and weekly establish context; daily defines the day’s directional hypothesis; 4H and 1H refine its current strength.</p>
+      </article>
+    </section>
+
+    <section class="panel">
+      <div class="section-head"><div><h2>Why this bias?</h2><div class="muted small">Evidence, not a black-box prediction</div></div><span id="confidence" class="pill">—</span></div>
+      <div id="evidence" class="evidence-list"><div class="muted">Analysis will appear here.</div></div>
+    </section>
+
+    <section class="panel">
+      <h2>Key market levels</h2>
+      <div id="keyLevels" class="level-grid"></div>
+    </section>
+
+    <footer class="footer">
+      <div>Data: Binance public market data · Chart: TradingView Lightweight Charts™</div>
+      <div><a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a> · Personal research tool · No order execution</div>
+      <div id="dailyClock" class="muted small">Daily review boundary: 05:30 Asia/Kolkata</div>
+    </footer>
+  </main>
+  <div id="toast" class="toast" aria-live="polite"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
