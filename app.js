@@ -33,12 +33,15 @@ async function loadChart(tf=currentTf){
 function drawLines(r){
   for(const line of priceLines){try{series.removePriceLine(line);}catch(e){}}
   priceLines=[];
-  const lines=[];
   const add=(price,title,color,style=2)=>{if(Number.isFinite(price))priceLines.push(series.createPriceLine({price,title,color,lineWidth:1,lineStyle:style,axisLabelVisible:true}));};
   add(r.price,"Reference","#6da9ff",0);
-  add(r.levels.sl,"Potential SL","#f06470",2);
-  (r.levels.tp||[]).forEach((p,i)=>add(p,`TP${i+1}`,"#26c281",2));
+  if(r.bias!=="neutral"){
+    add(r.levels.sl,"Potential SL","#f06470",2);
+    (r.levels.tp||[]).forEach((p,i)=>add(p,`TP${i+1}`,"#26c281",2));
+  }
   add(r.keyLevels.PDH,"PDH","#d9a84e",1);add(r.keyLevels.PDL,"PDL","#d9a84e",1);
+  add(r.zones?.support?.midpoint,"Support zone","#26c281",1);
+  add(r.zones?.resistance?.midpoint,"Resistance zone","#f06470",1);
 }
 function stabilizeDailyBias(r){
   // Daily bias is sticky within one UTC day. Opposite bias needs strong,
@@ -81,9 +84,15 @@ function render(r){
   $("volatility").textContent=r.volatility===null?"—":`${r.volatility}%`;
   $("dol").textContent=r.dol;$("dailyState").textContent="Live / provisional";
   $("confidence").textContent=`Evidence strength ${r.confidence}%`;
-  $("levels").innerHTML=r.bias==="neutral"?`<div class="muted">No SL/TP published: bias is Neutral. This avoids forcing levels when direction is unclear.</div>`:
+  $("levels").innerHTML=r.bias==="neutral"?`<div class="muted">Neutral bias: active SL/TP withheld. Conditional scenarios are shown separately below.</div>`:
     `<div class="level-row"><span>Reference price</span><b>$${fmt(r.levels.entry)}</b></div><div class="level-row stop"><span>Potential SL · 4H invalidation</span><b>$${fmt(r.levels.sl)}</b></div>`+
     (r.levels.tp||[]).map((x,i)=>`<div class="level-row target"><span>Potential TP${i+1}</span><b>$${fmt(x)}</b></div>`).join("");
+  const zoneText=(z)=>z?`$${fmt(z.low)} – $${fmt(z.high)} <small class="muted">(${z.basis||z.kind||"candidate zone"})</small>`:"Not identified";
+  $("zones").innerHTML=`<div class="zone-row"><b>Support</b><span>${zoneText(r.zones?.support)}</span></div>
+    <div class="zone-row"><b>Demand</b><span>${(r.zones?.demand||[]).map(z=>`$${fmt(z.low)}–$${fmt(z.high)} <small>${z.kind}</small>`).join("<br>")||"No clear candidate"}</span></div>
+    <div class="zone-row"><b>Resistance</b><span>${zoneText(r.zones?.resistance)}</span></div>
+    <div class="zone-row"><b>Supply</b><span>${(r.zones?.supply||[]).map(z=>`$${fmt(z.low)}–$${fmt(z.high)} <small>${z.kind}</small>`).join("<br>")||"No clear candidate"}</span></div>`;
+  $("scenarios").innerHTML=["bullish","bearish"].map(side=>{const s=r.scenarios[side];return `<div class="scenario"><b>${s.label}</b><small>${s.condition}</small><div>Reference: $${fmt(s.reference)} · SL: $${fmt(s.sl)}</div>${(s.tp||[]).map((v,i)=>`<div>TP${i+1}: $${fmt(v)}</div>`).join("")}</div>`;}).join("");
   $("timeframes").innerHTML=Object.entries(r.timeframes).map(([k,v])=>`<div class="tf-row"><div class="tf-name">${k}</div><div><div>${v.detail}</div><div class="tf-detail">Score ${v.score??0}</div></div><div class="tag ${v.bias}">${v.bias.toUpperCase()}</div></div>`).join("");
   $("evidence").innerHTML=r.evidence.map(([a,b,c])=>`<div class="evidence"><span><b>${a}</b><br><small class="muted">${b}</small></span><span class="tag ${c}">${c.toUpperCase()}</span></div>`).join("");
   $("keyLevels").innerHTML=Object.entries(r.keyLevels).map(([k,v])=>`<div class="key"><small>${k}</small><b>${v===null?"—":"$"+fmt(v)}</b></div>`).join("");

@@ -77,6 +77,36 @@ function levelSet(bias,price,a4,day,week){
   targets=targets.sort((a,b)=>bias==="bullish"?a-b:b-a);
   return {entry:price,sl:round(sl,2),tp:targets.slice(0,3).map(x=>round(x,2))};
 }
+
+function zoneFromPivots(pivotItems, price, side, atrValue){
+  const valid=pivotItems.filter(x=>Number.isFinite(x.price) && (side==="below"?x.price<price:x.price>price));
+  valid.sort((a,b)=>side==="below"?b.price-a.price:a.price-b.price);
+  const chosen=valid.slice(0,3);
+  if(!chosen.length)return null;
+  const half=Math.max((atrValue||price*.005)*.12,price*.00035);
+  const values=chosen.map(x=>x.price);
+  return {low:round(Math.min(...values)-half),high:round(Math.max(...values)+half),
+    midpoint:round(mean(values)),basis:"Confirmed swing pivots",touches:chosen.length};
+}
+function candidateOrderBlocks(candles, side, atrValue){
+  const c=candles.slice(0,-1),out=[];
+  for(let i=Math.max(1,c.length-30);i<c.length-1;i++){
+    const x=c[i],next=c[i+1];
+    const displacement=(next.close-next.open)/(atrValue||1);
+    if(side==="demand"&&x.close<x.open&&next.close>x.high&&displacement>.45)
+      out.push({low:round(x.low),high:round(Math.max(x.open,x.close)),time:x.time,kind:"Candidate bullish OB"});
+    if(side==="supply"&&x.close>x.open&&next.close<x.low&&displacement<-.45)
+      out.push({low:round(Math.min(x.open,x.close)),high:round(x.high),time:x.time,kind:"Candidate bearish OB"});
+  }
+  return out.slice(-3);
+}
+function scenarioLevels(bias, price, h4, day, week){
+  const raw=levelSet(bias,price,h4,day,week);
+  return {bias,reference:raw.entry,sl:raw.sl,tp:raw.tp,
+    label:bias==="bullish"?"Conditional bullish scenario":"Conditional bearish scenario",
+    condition:bias==="bullish"?"Only relevant after bullish structure is confirmed":"Only relevant after bearish structure is confirmed"};
+}
+
 export function analyzeMarket(data){
   const {m1,w1,d1,h4,h1}=data;
   const m=tfAnalysis(m1),w=tfAnalysis(w1),d=tfAnalysis(d1),h=tfAnalysis(h4),one=tfAnalysis(h1);
@@ -115,8 +145,21 @@ export function analyzeMarket(data){
   const highs=[...h.pivots.highs.map(x=>x.price),pdh].filter(Number.isFinite);
   const lows=[...h.pivots.lows.map(x=>x.price),pdl].filter(Number.isFinite);
   const dol=direction==="bullish"?"Buy-side liquidity":direction==="bearish"?"Sell-side liquidity":"No clear draw";
+  const support=zoneFromPivots([...h.pivots.lows,...d.pivots.lows],price,"below",a4);
+  const resistance=zoneFromPivots([...h.pivots.highs,...d.pivots.highs],price,"above",a4);
+  const demandOB=candidateOrderBlocks(h4,"demand",a4);
+  const supplyOB=candidateOrderBlocks(h4,"supply",a4);
+  const zones={
+    support, resistance,
+    demand:[...(support?[{...support,kind:"Swing demand candidate"}]:[]),...demandOB].slice(0,4),
+    supply:[...(resistance?[{...resistance,kind:"Swing supply candidate"}]:[]),...supplyOB].slice(0,4)
+  };
+  const scenarios={
+    bullish:scenarioLevels("bullish",price,h,currentDay,lastWeek),
+    bearish:scenarioLevels("bearish",price,h,currentDay,lastWeek)
+  };
   return {
-    bias:direction,score:round(score,2),confidence,price,levels,evidence,dol,
+    bias:direction,score:round(score,2),confidence,price,levels,evidence,dol,zones,scenarios,
     volatility:price?round((a4/price)*100,2):null,
     timeframes:{Monthly:m,Weekly:w,Daily:d,"4H":h,"1H":one},
     keyLevels:{PDH:round(pdh),PDL:round(pdl),dayHigh:round(currentDay?.high),dayLow:round(currentDay?.low),

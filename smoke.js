@@ -8,4 +8,7 @@ const r=analyzeMarket({m1:candles(60,2592000,1000000000,30000,50),w1:candles(80,
 if(!["bullish","bearish","neutral"].includes(r.bias))throw new Error("Invalid bias");
 if(r.bias==="bullish"&&r.levels.sl>=r.price)throw new Error("Bullish SL must be below price");
 if(r.bias==="bearish"&&r.levels.sl<=r.price)throw new Error("Bearish SL must be above price");
+if(!r.scenarios?.bullish?.sl || !r.scenarios?.bearish?.sl)throw new Error("Both conditional scenarios must include SL");
+if(!Array.isArray(r.scenarios.bullish.tp)||!Array.isArray(r.scenarios.bearish.tp))throw new Error("Scenario targets missing");
+if(!r.zones || !("support" in r.zones) || !("resistance" in r.zones))throw new Error("Support/resistance zone output missing");
 console.log("Smoke test passed",r.bias,r.score);

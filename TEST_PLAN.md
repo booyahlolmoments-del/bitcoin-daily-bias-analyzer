@@ -13,3 +13,8 @@
 - [ ] Compare signals against manually labelled historical BTC periods.
 - [ ] Walk-forward test with fees, slippage, funding (if using futures), and realistic execution.
 - [ ] Track precision, recall, false-bias rate, max adverse excursion, drawdown and expectancy.
+
+- [ ] Neutral bias still shows both conditional scenarios without labelling them active.
+- [ ] Support/resistance zones are ordered around the current price.
+- [ ] Candidate demand/supply labels are not presented as confirmed institutional order blocks.
+- [ ] Scenario SL/TP ordering is correct for both directions.

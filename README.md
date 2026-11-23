@@ -1,4 +1,4 @@
-# BTC Daily Bias Analyzer
+# BTC Daily Bias Analyzer V2
 
 Personal BTC/USDT daily-bias research dashboard. It does **not** place trades.
 
@@ -6,7 +6,9 @@ Personal BTC/USDT daily-bias research dashboard. It does **not** place trades.
 - Monthly, weekly, daily, 4H and 1H top-down context.
 - ICT/SMC-inspired swing structure, PDH/PDL, BSL/SSL sweep/reclaim, FVG, premium/discount and displacement checks.
 - Evidence score with visible reasons.
-- Potential 4H-structure/ATR invalidation (SL) and up to three liquidity/ATR reference targets.
+- Potential 4H-structure/ATR invalidation (SL) and up to three liquidity/ATR reference targets for confirmed directional bias.
+- Support/resistance swing zones and candidate demand/supply areas.
+- Separate conditional bullish and bearish scenario levels, including when the main bias is Neutral.
 - 1-minute refresh; UTC daily boundary is 00:00, which is 05:30 Asia/Kolkata.
 - Optional Cloudflare Worker proxy.
 - TradingView Lightweight Charts with required attribution.
@@ -14,10 +16,11 @@ Personal BTC/USDT daily-bias research dashboard. It does **not** place trades.
 ## Important limitations
 1. This is a **research prototype**, not a validated profitable strategy. The score is not a probability or win rate.
 2. The current-day daily candle and latest 4H/1H candles are developing. The dashboard labels the result provisional. Higher-timeframe structural confirmation uses closed candles where possible.
-3. SL/TP are potential reference levels, not personalized risk advice or guaranteed targets. In Neutral conditions, the app intentionally withholds levels.
-4. Equal highs/lows, order blocks and FVGs are simplified rule-based detections. They require further validation and backtesting before relying on them.
-5. Binance public data availability may vary by network/region. No API key is embedded.
-6. No entry model, order placement, leverage, or account connection is included.
+3. Active SL/TP are withheld in Neutral conditions. V2 still shows separate conditional bullish/bearish scenario levels; these are not active trade instructions.
+4. Support/resistance and demand/supply are rule-based candidate zones. Order-block candidates use a simplified opposite-candle/displacement rule; they are not validated institutional order-flow data.
+5. Equal highs/lows and FVGs are simplified rule-based detections. They require further validation and backtesting before relying on them.
+6. Binance public data availability may vary by network/region. No API key is embedded.
+7. No entry model, order placement, leverage, or account connection is included.
 
 ## Run locally
 - Serve this folder using a static web server (not `file://`).
@@ -52,5 +55,6 @@ Open browser devtools and check Network/Console. Confirm the five intervals load
 - Unit tests for swing detection, sweep logic, bias state transitions and target ordering.
 - Historical walk-forward backtest including fees/slippage.
 - More rigorous order-block and equal-high/low clustering.
-- Bias persistence / invalidation state machine.
+- Stronger bias persistence / invalidation state machine.
+- Historical walk-forward validation of zone and scenario quality.
 - Cache and server-side scheduled snapshots if background monitoring is required.
