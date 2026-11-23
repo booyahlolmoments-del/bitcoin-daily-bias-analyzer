@@ -1,22 +1,21 @@
 /**
- * ICT & SMC Top-Down Daily Bias Engine (No Entry Model - Pure Bias & Target)
- * Based on: Sweep & Reject (Reversal), Close Beyond (Continuation),
- * Inside Bar Neutrality, Candle Anatomy, and 4H/1H Alignment.
+ * ICT & SMC Top-Down Daily Bias Engine (Pure Bias & Liquidity Target - No Entry Model)
+ * Multi-Asset Ready: BTCUSDT, ETHUSDT, LINKUSDT, SOLUSDT
  */
 
-function analyzeCandleBias(prev, curr, prev2 = null) {
+function analyzeCandleBias(prev, curr) {
   if (!prev || !curr) return { bias: "NEUTRAL", score: 0, reason: "Insufficient data", target: null };
 
   const prevRange = prev.high - prev.low;
   if (prevRange === 0) return { bias: "NEUTRAL", score: 0, reason: "Zero range candle", target: null };
 
-  // 1. Inside Candle Check (Neutral Rule from Video)
+  // 1. Inside Candle Check (Neutral Rule)
   const isInsideBar = curr.high <= prev.high && curr.low >= prev.low;
   if (isInsideBar) {
     return {
       bias: "NEUTRAL",
       score: 0,
-      reason: "Inside Candle (Range bound - No fresh breakout/sweep)",
+      reason: "Inside Candle (Range bound - No fresh sweep or breakout)",
       target: null
     };
   }
@@ -25,7 +24,6 @@ function analyzeCandleBias(prev, curr, prev2 = null) {
   const sweptLow = curr.low < prev.low && curr.close > prev.low;
   const sweptHigh = curr.high > prev.high && curr.close < prev.high;
 
-  // Outside Bar (Both sides swept)
   if (sweptLow && sweptHigh) {
     const closeInUpperHalf = curr.close > (curr.high + curr.low) / 2;
     return {
@@ -40,7 +38,7 @@ function analyzeCandleBias(prev, curr, prev2 = null) {
     return {
       bias: "BULLISH",
       score: 2.5,
-      reason: "Bullish Reversal: Previous Low Swept & Rejected (Closed above prev low)",
+      reason: "Bullish Reversal: Previous Low Swept & Rejected",
       target: curr.high
     };
   }
@@ -49,7 +47,7 @@ function analyzeCandleBias(prev, curr, prev2 = null) {
     return {
       bias: "BEARISH",
       score: -2.5,
-      reason: "Bearish Reversal: Previous High Swept & Rejected (Closed below prev high)",
+      reason: "Bearish Reversal: Previous High Swept & Rejected",
       target: curr.low
     };
   }
@@ -58,18 +56,16 @@ function analyzeCandleBias(prev, curr, prev2 = null) {
   const closedAboveHigh = curr.close > prev.high;
   const closedBelowLow = curr.close < prev.low;
 
-  // Candle Anatomy Check (Upper/Lower Wick Rejection)
   const currRange = curr.high - curr.low || 1;
   const upperWickRatio = (curr.high - Math.max(curr.open, curr.close)) / currRange;
   const lowerWickRatio = (Math.min(curr.open, curr.close) - curr.low) / currRange;
 
   if (closedAboveHigh) {
-    // If massive upper wick rejection (>45%), warn about exhaustion/pullback
     if (upperWickRatio > 0.45) {
       return {
         bias: "BULLISH",
         score: 1.0,
-        reason: "Bullish Continuation (Closed above High, but heavy top wick rejection - expect dip first)",
+        reason: "Bullish Continuation (Heavy upper wick rejection - expect dip first)",
         target: curr.high
       };
     }
@@ -86,7 +82,7 @@ function analyzeCandleBias(prev, curr, prev2 = null) {
       return {
         bias: "BEARISH",
         score: -1.0,
-        reason: "Bearish Continuation (Closed below Low, but heavy bottom wick rejection - expect pullback first)",
+        reason: "Bearish Continuation (Heavy lower wick rejection - expect pullback first)",
         target: curr.low
       };
     }
@@ -98,24 +94,22 @@ function analyzeCandleBias(prev, curr, prev2 = null) {
     };
   }
 
-  return { bias: "NEUTRAL", score: 0, reason: "No clear sweep or close beyond", target: null };
+  return { bias: "NEUTRAL", score: 0, reason: "Consolidating inside previous range", target: null };
 }
 
-// Check 4-Candle Exhaustion Rule (from Video TST Concept)
 function checkExhaustion(candles) {
   if (!candles || candles.length < 4) return 0;
   const last4 = candles.slice(-4);
   const allBull = last4.every(c => c.close > c.open);
   const allBear = last4.every(c => c.close < c.open);
 
-  if (allBull) return -0.75; // 4 consecutive green candles -> pullback/reversal risk
-  if (allBear) return 0.75;  // 4 consecutive red candles -> bounce/reversal risk
+  if (allBull) return -0.75;
+  if (allBear) return 0.75;
   return 0;
 }
 
-// Check 4H / 1H Intraday Alignment & Structure
 function analyzeIntradayStructure(candles) {
-  if (!candles || candles.length < 5) return { bias: "NEUTRAL", score: 0, reason: "Insufficient intraday candles" };
+  if (!candles || candles.length < 6) return { bias: "NEUTRAL", score: 0, reason: "Insufficient intraday candles" };
 
   const prev = candles[candles.length - 2];
   const curr = candles[candles.length - 1];
@@ -135,24 +129,37 @@ function analyzeIntradayStructure(candles) {
     return { bias: "BEARISH", score: -1.0, reason: "Intraday Bearish BOS" };
   }
 
-  return { bias: "NEUTRAL", score: 0, reason: "Intraday Consolidating" };
+  return { bias: "NEUTRAL", score: 0, reason: "Mixed intraday swing structure" };
 }
 
-/**
- * Main Top-Down Daily Bias Calculator
- * Pass closed candles arrays for: monthly (mn), weekly (wk), daily (d1), 4H (h4), 1H (h1)
- */
+function calculateATR(candles, period = 14) {
+  if (!candles || candles.length < period + 1) return 0;
+  let sum = 0;
+  for (let i = candles.length - period; i < candles.length; i++) {
+    const c = candles[i];
+    const p = candles[i - 1];
+    const tr = Math.max(c.high - c.low, Math.abs(c.high - p.close), Math.abs(c.low - p.close));
+    sum += tr;
+  }
+  return sum / period;
+}
+
 function calculateTopDownDailyBias({ mn = [], wk = [], d1 = [], h4 = [], h1 = [] }) {
-  // Use last 2 CLOSED candles for HTF to avoid developing candle repainting
-  const mnAnalysis = mn.length >= 2 ? analyzeCandleBias(mn[mn.length - 2], mn[mn.length - 1]) : { bias: "NEUTRAL", score: 0, reason: "N/A" };
-  const wkAnalysis = wk.length >= 2 ? analyzeCandleBias(wk[wk.length - 2], wk[wk.length - 1]) : { bias: "NEUTRAL", score: 0, reason: "N/A" };
-  const d1Analysis = d1.length >= 2 ? analyzeCandleBias(d1[d1.length - 2], d1[d1.length - 1]) : { bias: "NEUTRAL", score: 0, reason: "N/A" };
+  // Use last 2 CLOSED candles (exclude currently open candle at index length - 1)
+  const closedMn = mn.slice(0, -1);
+  const closedWk = wk.slice(0, -1);
+  const closedD1 = d1.slice(0, -1);
+  const closedH4 = h4.slice(0, -1);
+  const closedH1 = h1.slice(0, -1);
 
-  const h4Analysis = analyzeIntradayStructure(h4);
-  const h1Analysis = analyzeIntradayStructure(h1);
-  const d1Exhaustion = checkExhaustion(d1);
+  const mnAnalysis = closedMn.length >= 2 ? analyzeCandleBias(closedMn[closedMn.length - 2], closedMn[closedMn.length - 1]) : { bias: "NEUTRAL", score: 0, reason: "N/A" };
+  const wkAnalysis = closedWk.length >= 2 ? analyzeCandleBias(closedWk[closedWk.length - 2], closedWk[closedWk.length - 1]) : { bias: "NEUTRAL", score: 0, reason: "N/A" };
+  const d1Analysis = closedD1.length >= 2 ? analyzeCandleBias(closedD1[closedD1.length - 2], closedD1[closedD1.length - 1]) : { bias: "NEUTRAL", score: 0, reason: "N/A" };
 
-  // Top-Down Weighted Scoring (Daily & Weekly hold primary weight for Next-Day Bias)
+  const h4Analysis = analyzeIntradayStructure(closedH4);
+  const h1Analysis = analyzeIntradayStructure(closedH1);
+  const d1Exhaustion = checkExhaustion(closedD1);
+
   const totalScore =
     (mnAnalysis.score * 0.8) +
     (wkAnalysis.score * 1.2) +
@@ -165,42 +172,45 @@ function calculateTopDownDailyBias({ mn = [], wk = [], d1 = [], h4 = [], h1 = []
   if (totalScore >= 1.2) finalBias = "BULLISH";
   else if (totalScore <= -1.2) finalBias = "BEARISH";
 
-  // Previous Day High / Low (Strictly from last closed daily candle)
-  const lastClosedDay = d1[d1.length - 1] || {};
+  const lastClosedDay = closedD1[closedD1.length - 1] || {};
   const pdh = lastClosedDay.high || null;
   const pdl = lastClosedDay.low || null;
 
-  // Determine Primary Liquidity Target & Opening Price Rule
-  let drawOnLiquidity = null;
-  let executionNote = "Wait for clear HTF sweep or close beyond.";
+  const liveCandle = d1[d1.length - 1] || lastClosedDay;
+  const atr = calculateATR(closedD1, 14);
+  const volatilityPct = liveCandle.close ? ((atr / liveCandle.close) * 100).toFixed(2) : "0.00";
+  const evidenceStrength = Math.min(100, Math.round((Math.abs(totalScore) / 6.5) * 100));
+
+  let drawOnLiquidity = "No clear draw";
+  let executionNote = "Higher-timeframe evidence is mixed or inside range. Wait for clear sweep/BOS.";
 
   if (finalBias === "BULLISH") {
-    drawOnLiquidity = pdh;
-    executionNote = "Opening Price Rule: Look for buys BELOW Daily Open (in discount/POI) targeting PDH.";
+    drawOnLiquidity = pdh ? `PDH $${pdh}` : "PDH";
+    executionNote = "Opening Price Rule: Look for buys BELOW Daily Open (discount/POI) targeting PDH.";
   } else if (finalBias === "BEARISH") {
-    drawOnLiquidity = pdl;
-    executionNote = "Opening Price Rule: Look for sells ABOVE Daily Open (in premium/POI) targeting PDL.";
+    drawOnLiquidity = pdl ? `PDL $${pdl}` : "PDL";
+    executionNote = "Opening Price Rule: Look for sells ABOVE Daily Open (premium/POI) targeting PDL.";
   }
 
   return {
     dailyBias: finalBias,
     confidenceScore: Number(totalScore.toFixed(2)),
+    evidenceStrength,
+    volatilityPct,
     drawOnLiquidity,
     pdh,
     pdl,
     executionNote,
     breakdown: {
-      monthly: mnAnalysis,
-      weekly: wkAnalysis,
-      daily: d1Analysis,
-      h4: h4Analysis,
-      h1: h1Analysis,
-      exhaustionAdjustment: d1Exhaustion
+      Monthly: mnAnalysis,
+      Weekly: wkAnalysis,
+      Daily: d1Analysis,
+      "4H": h4Analysis,
+      "1H": h1Analysis
     }
   };
 }
 
-// Export for module or browser global usage
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = { calculateTopDownDailyBias, analyzeCandleBias };
+if (typeof window !== "undefined") {
+  window.BiasEngine = { calculateTopDownDailyBias };
 }
